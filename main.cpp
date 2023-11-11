@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cassert>
 #include <array>
+#include <fstream>
 
 #include <GL/glew.h>
 
@@ -12,6 +13,69 @@
 
 const int Width = 800;
 const int Height = 600;
+
+std::string ReadFile(const char* FilePath)
+{
+	std::string FileContents;
+	if ( std::ifstream FileStream{ FilePath, std::ios::in })
+	{
+		//Ler dentro do FileContents o conteúdo do arquivo apontado por FilePath
+		FileContents.assign(std::istreambuf_iterator<char>(FileStream), std::istreambuf_iterator<char>());
+	}
+	return FileContents;
+}
+
+GLuint LoadShaders(const char* VertexShaderFile, const char* FragmentShaderFile)
+{
+	std::string VertexShaderSource = ReadFile(VertexShaderFile);
+	std::string FragmentShaderSource = ReadFile(FragmentShaderFile);
+
+	assert(!VertexShaderSource.empty());
+	assert(!FragmentShaderSource.empty());
+
+	//Criar identificadores do Vertex e Fragment Shaders
+	GLuint VertexShaderId = glCreateShader(GL_VERTEX_SHADER);
+	GLuint FragmentShaderId = glCreateShader(GL_FRAGMENT_SHADER);
+
+	std::cout << "Compilando: " << VertexShaderFile << std::endl;
+	const char* VertexShaderSourcePtr = VertexShaderSource.c_str();
+	glShaderSource(VertexShaderId, 1, &VertexShaderSourcePtr, nullptr);
+	glCompileShader(VertexShaderId);
+
+	//Verificar se a compilação do vertex shader deu certo
+
+	std::cout << "Compilando " << FragmentShaderFile << std::endl;
+	const char* FragmentShaderSourcePtr = FragmentShaderSource.c_str();
+	glShaderSource(FragmentShaderId, 1, &FragmentShaderSourcePtr, nullptr);
+	glCompileCommandListNV(FragmentShaderId);
+
+	//Verificar se a compilação do fragment shader deu certo
+
+	std::cout << "Linkando o programa" << std::endl;
+	GLuint ProgramId = glCreateProgram();
+	glAttachShader(ProgramId, VertexShaderId);
+	glAttachShader(ProgramId, FragmentShaderId);
+	glLinkProgram(ProgramId);
+
+	//Verificar o programa
+	GLint Result = GL_TRUE;
+	glGetProgramiv(ProgramId, GL_LINK_STATUS, &Result);
+
+	if (Result == GL_FALSE)
+	{
+		std::cout << "Erro ao linkar o programa" << std::endl;
+
+		//Pegar o log para avaliar problema
+
+		assert(false);
+	}
+
+	glDetachShader(ProgramId, VertexShaderId);
+	glDetachShader(ProgramId, FragmentShaderId);
+
+	glDeleteShader(VertexShaderId);
+	glDeleteShader(FragmentShaderId);
+}
 
 int main()
 {
@@ -39,6 +103,8 @@ int main()
 	std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << std::endl;
 	std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 	std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+
+	GLuint ProgramId = LoadShaders("shaders/triangle_vert.glsl", "shaders/triangle_frag.glsl");
 
 	//Definir um triângulo em coordenadas normalizadas
 	std::array<glm::vec3, 3> Triangle = {
